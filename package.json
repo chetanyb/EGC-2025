@@ -1,5 +1,5 @@
 {
-  "name": "egc-backend",
+  "name": "egc-trial",
   "version": "1.0.0",
   "main": "index.js",
   "directories": {
@@ -7,11 +7,11 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "jest",
+    "test": "node scripts/test-runner.js",
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "setup": "node scripts/setup.js",
-    "demo": "node scripts/demo.js"
+    "demo": "DEMO_MODE=true node src/server.js"
   },
   "keywords": [],
   "author": "",
