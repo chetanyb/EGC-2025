@@ -125,11 +125,11 @@ function logTransaction(transaction) {
 
 // Serve interfaces
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'merchant-pos.html'));
+  res.sendFile(path.join(__dirname, 'public', 'register.html'));
 });
 
-app.get('/register', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'register.html'));
+app.get('/pos', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'merchant-pos.html'));
 });
 
 // Add this route to serve the admin page
@@ -922,9 +922,8 @@ process.on('SIGTERM', () => {
 // Start server
 app.listen(PORT, async () => {
   console.log(`🚀 NFC Smart Wallet Backend running on port ${PORT}`);
-  console.log(`📱 API endpoints available at http://localhost:${PORT}/api/`);
-  console.log(`🏪 Merchant POS interface at http://localhost:${PORT}/`);
-  console.log(`👤 User registration at http://localhost:${PORT}/register`);
+  console.log(`🏪 Merchant POS interface at http://localhost:${PORT}/pos`);
+  console.log(`👤 User registration at http://localhost:${PORT}/`);
 
   try {
     await initializeSystem();
