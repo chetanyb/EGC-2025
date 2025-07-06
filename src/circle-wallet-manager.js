@@ -308,8 +308,16 @@ class CircleWalletManager {
       const check = this.performSecurityChecks(walletRules, amount, merchantAddress);
       if (!check.passed) throw new Error(check.reason);
 
-      const balance = await this.getWalletBalance(walletRules.walletId);
-      if (parseFloat(balance) < amount) throw new Error(`Insufficient balance: ${balance} USDC`);
+      let balance = await this.getWalletBalance(walletRules.walletId);
+      if (parseFloat(balance) < amount) {
+        const deficit = (amount - parseFloat(balance)).toFixed(2);
+        console.log(
+            `⚡️ Auto-top-up ${deficit} USDC from treasury to child ${walletRules.walletId}`
+        );
+        await this.fundChildWallet(walletRules.walletId, deficit);
+        balance = await this.getWalletBalance(walletRules.walletId);
+        console.log(`✅ New child balance: ${balance} USDC`);
+      }
 
       const entitySecretCiphertext = await this.client.generateEntitySecretCiphertext();
       const transferRequest = {

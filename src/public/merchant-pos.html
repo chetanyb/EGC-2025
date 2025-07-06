@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NFC Smart Wallet - Merchant POS</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .pos-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2196f3, #21cbf3);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .merchant-info {
+            background: rgba(255,255,255,0.2);
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .main-content {
+            padding: 40px;
+        }
+
+        .amount-section {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .amount-display {
+            font-size: 4rem;
+            font-weight: bold;
+            color: #2196f3;
+            margin: 20px 0;
+        }
+
+        .currency-label {
+            font-size: 1.2rem;
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .keypad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            max-width: 300px;
+            margin: 0 auto 30px;
+        }
+
+        .keypad button {
+            padding: 20px;
+            font-size: 1.5rem;
+            border: 2px solid #e0e0e0;
+            background: white;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .keypad button:hover {
+            background: #f5f5f5;
+            border-color: #2196f3;
+        }
+
+        .keypad button:active {
+            transform: scale(0.95);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            margin: 30px 0;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-clear {
+            background: #ff5722;
+            color: white;
+        }
+
+        .btn-clear:hover {
+            background: #e64a19;
+        }
+
+        .btn-process {
+            background: #4caf50;
+            color: white;
+        }
+
+        .btn-process:hover {
+            background: #43a047;
+        }
+
+        .nfc-section {
+            background: linear-gradient(135deg, #ffd54f, #ffb74d);
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            margin: 30px 0;
+        }
+
+        .nfc-icon {
+            font-size: 4rem;
+            margin-bottom: 15px;
+        }
+
+        .nfc-text {
+            font-size: 1.3rem;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .nfc-waiting {
+            display: none;
+            background: linear-gradient(135deg, #42a5f5, #478ed1);
+            color: white;
+        }
+
+        .nfc-waiting .nfc-icon {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .status-display {
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .status-success {
+            background: #c8e6c9;
+            color: #2e7d32;
+            border: 2px solid #4caf50;
+        }
+
+        .status-error {
+            background: #ffcdd2;
+            color: #c62828;
+            border: 2px solid #f44336;
+        }
+
+        .status-info {
+            background: #e1f5fe;
+            color: #0277bd;
+            border: 2px solid #2196f3;
+        }
+
+        .transaction-details {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            padding: 5px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .category-selector {
+            margin: 20px 0;
+        }
+
+        .category-selector select {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            background: white;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+<div class="pos-container">
+    <div class="header">
+        <h1>🏪 NFC Smart Wallet POS</h1>
+        <div class="merchant-info">
+            <div>Merchant: <strong id="merchantName">Demo Vendor 001</strong></div>
+            <div>Location: Event Hall A</div>
+            <div>Status: <span style="color: #4caf50;">● Online</span></div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <!-- Amount Input Section -->
+        <div class="amount-section">
+            <div class="currency-label">Transaction Amount</div>
+            <div class="amount-display" id="amountDisplay">$0.00</div>
+            <div style="color: #666;">USDC</div>
+
+            <div class="keypad">
+                <button onclick="addDigit('1')">1</button>
+                <button onclick="addDigit('2')">2</button>
+                <button onclick="addDigit('3')">3</button>
+                <button onclick="addDigit('4')">4</button>
+                <button onclick="addDigit('5')">5</button>
+                <button onclick="addDigit('6')">6</button>
+                <button onclick="addDigit('7')">7</button>
+                <button onclick="addDigit('8')">8</button>
+                <button onclick="addDigit('9')">9</button>
+                <button onclick="addDigit('.')">.</button>
+                <button onclick="addDigit('0')">0</button>
+                <button onclick="backspace()">⌫</button>
+            </div>
+
+            <div class="category-selector">
+                <select id="categorySelect">
+                    <option value="general">General Purchase</option>
+                    <option value="food">Food & Beverage</option>
+                    <option value="alcohol">Alcohol (21+ Required)</option>
+                    <option value="merchandise">Event Merchandise</option>
+                    <option value="services">Services</option>
+                </select>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn btn-clear" onclick="clearAmount()">Clear</button>
+                <button class="btn btn-process" onclick="waitForNFC()" id="processBtn">Ready for Payment</button>
+            </div>
+        </div>
+
+        <!-- NFC Section -->
+        <div class="nfc-section" id="nfcSection">
+            <div class="nfc-icon">📱</div>
+            <div class="nfc-text">Tap your NFC card to pay</div>
+            <div style="color: #666; font-size: 0.9rem;">Waiting for card...</div>
+        </div>
+
+        <div class="nfc-section nfc-waiting hidden" id="nfcWaiting">
+            <div class="nfc-icon">📡</div>
+            <div class="nfc-text">Processing Payment...</div>
+            <div class="loading-spinner"></div>
+        </div>
+
+        <!-- Status Display -->
+        <div id="statusDisplay" class="hidden">
+            <!-- Status messages will appear here -->
+        </div>
+
+        <!-- Transaction Details -->
+        <div id="transactionDetails" class="transaction-details hidden">
+            <h3>Transaction Details</h3>
+            <div class="detail-row">
+                <span>Transaction ID:</span>
+                <span id="txId">-</span>
+            </div>
+            <div class="detail-row">
+                <span>Amount:</span>
+                <span id="txAmount">-</span>
+            </div>
+            <div class="detail-row">
+                <span>Card ID:</span>
+                <span id="txCardId">-</span>
+            </div>
+            <div class="detail-row">
+                <span>Remaining Daily Limit:</span>
+                <span id="txRemainingLimit">-</span>
+            </div>
+            <div class="detail-row">
+                <span>Status:</span>
+                <span id="txStatus">-</span>
+            </div>
+        </div>
+
+        <!-- Quick Amount Buttons -->
+        <div style="display: flex; gap: 10px; margin: 20px 0; flex-wrap: wrap;">
+            <button class="btn" style="background: #e3f2fd; color: #1976d2; flex: none; padding: 10px 20px;" onclick="setQuickAmount(5)">$5</button>
+            <button class="btn" style="background: #e3f2fd; color: #1976d2; flex: none; padding: 10px 20px;" onclick="setQuickAmount(10)">$10</button>
+            <button class="btn" style="background: #e3f2fd; color: #1976d2; flex: none; padding: 10px 20px;" onclick="setQuickAmount(25)">$25</button>
+            <button class="btn" style="background: #e3f2fd; color: #1976d2; flex: none; padding: 10px 20px;" onclick="setQuickAmount(50)">$50</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // POS System State
+    let currentAmount = '0';
+    let isWaitingForNFC = false;
+    let merchantId = 'vendor001';
+
+    // Backend API base URL
+    const API_BASE = 'http://localhost:3001/api';
+
+    // Amount input functions
+    function addDigit(digit) {
+        if (isWaitingForNFC) return;
+
+        if (digit === '.' && currentAmount.includes('.')) return;
+        if (currentAmount === '0' && digit !== '.') {
+            currentAmount = digit;
+        } else {
+            currentAmount += digit;
+        }
+        updateDisplay();
+    }
+
+    function backspace() {
+        if (isWaitingForNFC) return;
+
+        if (currentAmount.length > 1) {
+            currentAmount = currentAmount.slice(0, -1);
+        } else {
+            currentAmount = '0';
+        }
+        updateDisplay();
+    }
+
+    function clearAmount() {
+        if (isWaitingForNFC) return;
+
+        currentAmount = '0';
+        updateDisplay();
+        hideStatus();
+        hideTransactionDetails();
+    }
+
+    function setQuickAmount(amount) {
+        if (isWaitingForNFC) return;
+
+        currentAmount = amount.toString();
+        updateDisplay();
+    }
+
+    function updateDisplay() {
+        const display = document.getElementById('amountDisplay');
+        const amount = parseFloat(currentAmount) || 0;
+        display.textContent = `$${amount.toFixed(2)}`;
+    }
+
+    // NFC Payment Processing
+    function waitForNFC() {
+        const amount = parseFloat(currentAmount) || 0;
+
+        if (amount <= 0) {
+            showStatus('Please enter an amount greater than $0', 'error');
+            return;
+        }
+
+        if (amount > 200) {
+            showStatus('Amount exceeds maximum transaction limit of $200', 'error');
+            return;
+        }
+
+        // Switch to waiting mode
+        isWaitingForNFC = true;
+        document.getElementById('nfcSection').classList.add('hidden');
+        document.getElementById('nfcWaiting').classList.remove('hidden');
+        document.getElementById('processBtn').textContent = 'Cancel';
+        document.getElementById('processBtn').onclick = cancelPayment;
+
+        // Simulate NFC card detection
+        setTimeout(() => {
+            simulateNFCTap();
+        }, 2000 + Math.random() * 3000); // Random delay 2-5 seconds
+    }
+
+    function cancelPayment() {
+        isWaitingForNFC = false;
+        document.getElementById('nfcSection').classList.remove('hidden');
+        document.getElementById('nfcWaiting').classList.add('hidden');
+        document.getElementById('processBtn').textContent = 'Ready for Payment';
+        document.getElementById('processBtn').onclick = waitForNFC;
+        showStatus('Payment cancelled', 'info');
+    }
+
+    // Simulate NFC tap - FIXED VERSION
+    function simulateNFCTap() {
+        // Use the EXACT demo cards that are registered in the backend
+        const testCards = [
+            'DEMO_CARD_001',
+        ];
+
+        const randomCard = testCards[Math.floor(Math.random() * testCards.length)];
+
+        console.log('🎯 Simulated NFC tap with card:', randomCard);
+        showStatus(`📱 Simulated NFC tap: ${randomCard}`, 'info');
+
+        processNFCPayment(randomCard);
+    }
+
+    // Process the actual payment
+    async function processNFCPayment(nfcUID) {
+        try {
+            const amount = parseFloat(currentAmount);
+            const category = document.getElementById('categorySelect').value;
+
+            console.log(`💳 Processing payment: ${nfcUID} → ${merchantId} ($${amount})`);
+
+            const response = await fetch(`${API_BASE}/nfc-payment`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    nfcUID: nfcUID,
+                    merchantId: merchantId,
+                    amount: amount,
+                    category: category
+                })
+            });
+
+            const result = await response.json();
+
+            // Reset UI
+            isWaitingForNFC = false;
+            document.getElementById('nfcSection').classList.remove('hidden');
+            document.getElementById('nfcWaiting').classList.add('hidden');
+            document.getElementById('processBtn').textContent = 'Ready for Payment';
+            document.getElementById('processBtn').onclick = waitForNFC;
+
+            if (result.success) {
+                showStatus(`✅ Payment Successful! $${amount.toFixed(2)} charged to ${nfcUID}`, 'success');
+                showTransactionDetails({
+                    id: result.transactionId,
+                    amount: amount,
+                    cardId: nfcUID,
+                    remainingLimit: result.remainingDailyLimit,
+                    status: 'Completed'
+                });
+
+                // Auto-clear for next transaction
+                setTimeout(() => {
+                    clearAmount();
+                }, 5000);
+            } else {
+                showStatus(`❌ Payment Failed: ${result.error}`, 'error');
+            }
+
+        } catch (error) {
+            console.error('Payment processing error:', error);
+            showStatus('❌ Payment failed: Connection error', 'error');
+
+            // Reset UI on error
+            isWaitingForNFC = false;
+            document.getElementById('nfcSection').classList.remove('hidden');
+            document.getElementById('nfcWaiting').classList.add('hidden');
+            document.getElementById('processBtn').textContent = 'Ready for Payment';
+            document.getElementById('processBtn').onclick = waitForNFC;
+        }
+    }
+
+    // UI Helper Functions
+    function showStatus(message, type = 'info') {
+        const statusDiv = document.getElementById('statusDisplay');
+        statusDiv.className = `status-display status-${type}`;
+        statusDiv.textContent = message;
+        statusDiv.classList.remove('hidden');
+    }
+
+    function hideStatus() {
+        document.getElementById('statusDisplay').classList.add('hidden');
+    }
+
+    function showTransactionDetails(details) {
+        document.getElementById('txId').textContent = details.id || '-';
+        document.getElementById('txAmount').textContent = `$${details.amount?.toFixed(2) || '0.00'}`;
+        document.getElementById('txCardId').textContent = details.cardId || '-';
+        document.getElementById('txRemainingLimit').textContent = `$${details.remainingLimit?.toFixed(2) || '0.00'}`;
+        document.getElementById('txStatus').textContent = details.status || '-';
+
+        document.getElementById('transactionDetails').classList.remove('hidden');
+    }
+
+    function hideTransactionDetails() {
+        document.getElementById('transactionDetails').classList.add('hidden');
+    }
+
+    // Initialize POS system
+    document.addEventListener('DOMContentLoaded', function() {
+        updateDisplay();
+
+        // Check backend connection
+        fetch(`${API_BASE}/system-status`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'running') {
+                    showStatus('✅ Connected to payment system', 'success');
+                    console.log('System status:', data);
+                    setTimeout(hideStatus, 3000);
+                }
+            })
+            .catch(error => {
+                showStatus('⚠️ Cannot connect to payment system', 'error');
+            });
+    });
+
+    // Keyboard support
+    document.addEventListener('keydown', function(event) {
+        if (isWaitingForNFC) return;
+
+        const key = event.key;
+        if (key >= '0' && key <= '9') {
+            addDigit(key);
+        } else if (key === '.') {
+            addDigit('.');
+        } else if (key === 'Backspace') {
+            backspace();
+        } else if (key === 'Enter') {
+            waitForNFC();
+        } else if (key === 'Escape') {
+            clearAmount();
+        }
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NFC Wallet - User Registration</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2196f3, #21cbf3);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .step {
+            display: none;
+            animation: fadeIn 0.5s;
+        }
+
+        .step.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #2196f3;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: #2196f3;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .btn:hover {
+            background: #1976d2;
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .demo-cards {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .demo-card {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid #2196f3;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .demo-card:hover {
+            transform: translateX(5px);
+        }
+
+        .demo-card.selected {
+            background: #e3f2fd;
+            border-left-color: #1976d2;
+        }
+
+        .success-section {
+            text-align: center;
+            padding: 40px;
+            background: linear-gradient(135deg, #4caf50, #43a047);
+            color: white;
+            border-radius: 15px;
+        }
+
+        .wallet-info {
+            background: rgba(255,255,255,0.2);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        .wallet-info div {
+            margin: 10px 0;
+            font-family: monospace;
+            word-break: break-all;
+        }
+
+        .actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .btn-secondary {
+            background: #666;
+        }
+
+        .btn-secondary:hover {
+            background: #555;
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .funding-section {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .funding-steps {
+            list-style: none;
+            counter-reset: step-counter;
+        }
+
+        .funding-steps li {
+            counter-increment: step-counter;
+            margin: 15px 0;
+            padding-left: 40px;
+            position: relative;
+        }
+
+        .funding-steps li::before {
+            content: counter(step-counter);
+            position: absolute;
+            left: 0;
+            top: 0;
+            background: #2196f3;
+            color: white;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .copy-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            margin-left: 10px;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>🔐 NFC Smart Wallet</h1>
+        <p>Register your NFC card for secure event payments</p>
+    </div>
+
+    <div class="content">
+        <!-- Step 1: User Details -->
+        <div class="step active" id="step1">
+            <h2>👤 Create Your Account</h2>
+            <form id="userForm">
+                <div class="form-group">
+                    <label for="userName">Full Name</label>
+                    <input type="text" id="userName" required placeholder="Enter your full name">
+                </div>
+
+                <div class="form-group">
+                    <label for="userEmail">Email Address</label>
+                    <input type="email" id="userEmail" required placeholder="your@email.com">
+                </div>
+
+                <div class="form-group">
+                    <label for="walletType">Wallet Type</label>
+                    <select id="walletType" required>
+                        <option value="">Select wallet type</option>
+                        <option value="standard">Standard ($50/tx, $200/day)</option>
+                        <option value="premium">Premium ($100/tx, $500/day)</option>
+                        <option value="vip">VIP ($200/tx, $1000/day)</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn">Next: Register NFC Card</button>
+            </form>
+        </div>
+
+        <!-- Step 2: NFC Registration -->
+        <div class="step" id="step2">
+            <h2>📡 NFC Card Registration</h2>
+
+            <!-- Demo Mode: Select a demo card -->
+            <div class="demo-cards">
+                <h3>🎬 Demo Mode - Select a Demo Card:</h3>
+                <div class="demo-card" data-nfc="DEMO_CARD_001">
+                    <strong>Demo Card 001</strong><br>
+                    Limits: $50/transaction, $200/day
+                </div>
+                <div class="demo-card" data-nfc="DEMO_CARD_002">
+                    <strong>Demo Card 002</strong><br>
+                    Limits: $25/transaction, $100/day
+                </div>
+                <div class="demo-card" data-nfc="DEMO_CARD_VIP">
+                    <strong>VIP Demo Card</strong><br>
+                    Limits: $200/transaction, $1000/day
+                </div>
+            </div>
+
+            <div id="registrationStatus"></div>
+
+            <div class="actions">
+                <button class="btn btn-secondary" onclick="previousStep()">Back</button>
+            </div>
+        </div>
+
+        <!-- Step 3: Success -->
+        <div class="step" id="step3">
+            <div class="success-section">
+                <h2>✅ Registration Complete!</h2>
+                <p>Your NFC wallet has been created successfully</p>
+
+                <div class="wallet-info" id="walletInfo">
+                    <!-- Wallet details will be populated here -->
+                </div>
+
+                <div class="actions">
+                    <button class="btn" onclick="showFunding()">💰 Fund Wallet</button>
+                    <button class="btn" onclick="goToPOS()">🏪 Go to POS</button>
+                    <button class="btn btn-secondary" onclick="registerAnother()">👥 Register Another Card</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 4: Funding -->
+        <div class="step" id="step4">
+            <h2>💰 Fund Your Wallet</h2>
+
+            <div class="wallet-info" id="currentWalletInfo">
+                <!-- Current wallet info -->
+            </div>
+
+            <div class="funding-section">
+                <h3>🔗 How to Fund Your Wallet</h3>
+                <p><strong>Your wallet needs USDC on Base Sepolia testnet to make payments.</strong></p>
+
+                <ol class="funding-steps">
+                    <li>Visit the Circle Faucet: <a href="https://faucet.circle.com/" target="_blank">https://faucet.circle.com/</a></li>
+                    <li>Select <strong>"Base Sepolia"</strong> network</li>
+                    <li>Enter your wallet address: <span id="fundingAddress" style="font-family: monospace; background: #f8f9fa; padding: 2px 5px; border-radius: 3px;"></span>
+                        <button class="copy-btn" onclick="copyAddress()">Copy</button>
+                    </li>
+                    <li>Request test USDC (usually gives 10 USDC)</li>
+                    <li>Wait 1-2 minutes for confirmation</li>
+                    <li>Check your balance below</li>
+                </ol>
+            </div>
+
+            <div class="actions">
+                <button class="btn" onclick="checkBalance()">🔄 Check Balance</button>
+                <button class="btn btn-secondary" onclick="goToPOS()">🏪 Go to POS</button>
+            </div>
+
+            <div id="fundingStatus"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentStep = 1;
+    let userData = {};
+    let selectedNFCCard = null;
+    let registeredWallet = null;
+
+    // Step navigation
+    function nextStep() {
+        document.querySelector('.step.active').classList.remove('active');
+        currentStep++;
+        document.getElementById(`step${currentStep}`).classList.add('active');
+    }
+
+    function previousStep() {
+        document.querySelector('.step.active').classList.remove('active');
+        currentStep--;
+        document.getElementById(`step${currentStep}`).classList.add('active');
+    }
+
+    // Handle user form submission
+    document.getElementById('userForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        userData = {
+            name: document.getElementById('userName').value,
+            email: document.getElementById('userEmail').value,
+            walletType: document.getElementById('walletType').value
+        };
+
+        console.log('User data collected:', userData);
+        nextStep();
+    });
+
+    // Demo card selection
+    document.querySelectorAll('.demo-card').forEach(card => {
+        card.addEventListener('click', () => {
+            // Remove previous selection
+            document.querySelectorAll('.demo-card').forEach(c => c.classList.remove('selected'));
+            // Select this card
+            card.classList.add('selected');
+            selectedNFCCard = card.dataset.nfc;
+
+            // Auto-register after selection
+            setTimeout(() => registerNFCCard(selectedNFCCard), 500);
+        });
+    });
+
+    // Register NFC card - FIXED to handle existing cards
+    async function registerNFCCard(nfcUID) {
+        try {
+            showStatus('info', 'Registering NFC card...', 'registrationStatus');
+
+            const limits = getWalletLimits(userData.walletType);
+
+            const response = await fetch('/api/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: `user_${Date.now()}`,
+                    nfcUID: nfcUID,
+                    limits: limits,
+                    userData: userData
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                registeredWallet = result;
+                showStatus('success', 'NFC card registered successfully!', 'registrationStatus');
+
+                setTimeout(() => {
+                    showWalletSuccess(result);
+                    nextStep();
+                }, 1500);
+            } else if (result.error && result.error.includes('already registered')) {
+                // Handle existing card - just proceed to use it
+                showStatus('info', 'Using existing NFC card registration', 'registrationStatus');
+
+                // Get wallet status for existing card
+                const statusResponse = await fetch(`/api/wallet-status/${nfcUID}`);
+                const statusData = await statusResponse.json();
+
+                registeredWallet = {
+                    walletAddress: statusData.walletAddress,
+                    limits: statusData.limits,
+                    success: true
+                };
+
+                setTimeout(() => {
+                    showWalletSuccess(registeredWallet);
+                    nextStep();
+                }, 1500);
+            } else {
+                showStatus('error', `Registration failed: ${result.error}`, 'registrationStatus');
+            }
+
+        } catch (error) {
+            showStatus('error', `Registration failed: ${error.message}`, 'registrationStatus');
+        }
+    }
+
+    // Get wallet limits based on type
+    function getWalletLimits(walletType) {
+        const limits = {
+            standard: { maxTransactionAmount: 50, dailySpendLimit: 200, maxTransactionsPerDay: 10 },
+            premium: { maxTransactionAmount: 100, dailySpendLimit: 500, maxTransactionsPerDay: 15 },
+            vip: { maxTransactionAmount: 200, dailySpendLimit: 1000, maxTransactionsPerDay: 20 }
+        };
+        return limits[walletType] || limits.standard;
+    }
+
+    // Show wallet success info
+    function showWalletSuccess(walletData) {
+        document.getElementById('walletInfo').innerHTML = `
+                <div><strong>Wallet Address:</strong><br>${walletData.walletAddress}</div>
+                <div><strong>NFC Card:</strong> ${selectedNFCCard}</div>
+                <div><strong>Daily Limit:</strong> $${walletData.limits.dailySpendLimit}</div>
+                <div><strong>Transaction Limit:</strong> $${walletData.limits.maxTransactionAmount}</div>
+                <div><strong>Status:</strong> Active ✅</div>
+            `;
+    }
+
+    // Funding functions
+    function showFunding() {
+        currentStep = 4;
+        document.querySelector('.step.active').classList.remove('active');
+        document.getElementById('step4').classList.add('active');
+
+        document.getElementById('currentWalletInfo').innerHTML = `
+                <div><strong>NFC Card:</strong> ${selectedNFCCard}</div>
+                <div><strong>Wallet:</strong> ${registeredWallet.walletAddress}</div>
+                <div><strong>Network:</strong> Base Sepolia</div>
+                <div><strong>Current Balance:</strong> Checking...</div>
+            `;
+
+        document.getElementById('fundingAddress').textContent = registeredWallet.walletAddress;
+
+        // Auto-check balance
+        checkBalance();
+    }
+
+    async function checkBalance() {
+        try {
+            showStatus('info', 'Checking wallet balance...', 'fundingStatus');
+
+            const response = await fetch(`/api/wallet-status/${selectedNFCCard}`);
+            const result = await response.json();
+
+            if (response.ok) {
+                const balance = parseFloat(result.balance) || 0;
+
+                document.getElementById('currentWalletInfo').innerHTML = `
+                        <div><strong>NFC Card:</strong> ${selectedNFCCard}</div>
+                        <div><strong>Wallet:</strong> ${registeredWallet.walletAddress}</div>
+                        <div><strong>Network:</strong> Base Sepolia</div>
+                        <div><strong>Current Balance:</strong> ${balance} USDC</div>
+                    `;
+
+                if (balance > 0) {
+                    showStatus('success', `✅ Wallet funded! Balance: ${balance} USDC. Ready to make payments!`, 'fundingStatus');
+                } else {
+                    showStatus('info', `⚠️ Wallet balance: ${balance} USDC. Fund your wallet using the steps above.`, 'fundingStatus');
+                }
+            } else {
+                showStatus('error', `Error checking balance: ${result.error}`, 'fundingStatus');
+            }
+
+        } catch (error) {
+            showStatus('error', `Balance check failed: ${error.message}`, 'fundingStatus');
+        }
+    }
+
+    function copyAddress() {
+        const address = document.getElementById('fundingAddress').textContent;
+        navigator.clipboard.writeText(address).then(() => {
+            alert('Wallet address copied to clipboard!');
+        });
+    }
+
+    // Navigation functions
+    function goToPOS() {
+        window.open('/', '_blank');
+    }
+
+    function registerAnother() {
+        location.reload();
+    }
+
+    // Utility functions
+    function showStatus(type, message, elementId) {
+        const element = document.getElementById(elementId);
+        element.innerHTML = `<div class="status ${type}">${message}</div>`;
+    }
+
+    // Check system status on load - FIXED
+    window.addEventListener('load', async () => {
+        try {
+            const response = await fetch('/api/system-status');
+            const status = await response.json();
+
+            console.log('System status:', status);
+
+            // Don't show error if system is running, even if not fully initialized
+            if (status.status === 'initialization_failed') {
+                showStatus('error', 'Backend initialization failed. Please check server logs.', 'registrationStatus');
+            }
+        } catch (error) {
+            showStatus('error', 'Cannot connect to backend server.', 'registrationStatus');
+        }
+    });
+</script>
+</body>
+</html>
