@@ -130,6 +130,80 @@
             background: #43a047;
         }
 
+        .btn-process:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        /* Card Selection Section */
+        .card-selection-section {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+        }
+
+        .card-selection-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .demo-cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .demo-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            border: 3px solid #e0e0e0;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+
+        .demo-card:hover {
+            border-color: #2196f3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .demo-card.selected {
+            background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+            border-color: #2196f3;
+            box-shadow: 0 5px 20px rgba(33, 150, 243, 0.3);
+        }
+
+        .card-icon {
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+
+        .card-name {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .card-limits {
+            font-size: 0.9rem;
+            color: #666;
+            line-height: 1.5;
+        }
+
+        .card-balance {
+            font-size: 1.1rem;
+            color: #2196f3;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
         .nfc-section {
             background: linear-gradient(135deg, #ffd54f, #ffb74d);
             padding: 30px;
@@ -235,6 +309,16 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+
+        .selected-card-info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            text-align: center;
+            font-weight: 600;
+            color: #1976d2;
+        }
     </style>
 </head>
 <body>
@@ -249,6 +333,17 @@
     </div>
 
     <div class="main-content">
+        <!-- Card Selection Section -->
+        <div class="card-selection-section">
+            <h2 class="card-selection-title">🎯 Select NFC Card to Simulate</h2>
+            <div class="demo-cards-grid" id="demoCardsGrid">
+                <!-- Demo cards will be populated here -->
+            </div>
+            <div class="selected-card-info hidden" id="selectedCardInfo">
+                Selected: <span id="selectedCardName"></span>
+            </div>
+        </div>
+
         <!-- Amount Input Section -->
         <div class="amount-section">
             <div class="currency-label">Transaction Amount</div>
@@ -282,15 +377,15 @@
 
             <div class="action-buttons">
                 <button class="btn btn-clear" onclick="clearAmount()">Clear</button>
-                <button class="btn btn-process" onclick="waitForNFC()" id="processBtn">Ready for Payment</button>
+                <button class="btn btn-process" onclick="processPayment()" id="processBtn" disabled>Select Card First</button>
             </div>
         </div>
 
         <!-- NFC Section -->
         <div class="nfc-section" id="nfcSection">
             <div class="nfc-icon">📱</div>
-            <div class="nfc-text">Tap your NFC card to pay</div>
-            <div style="color: #666; font-size: 0.9rem;">Waiting for card...</div>
+            <div class="nfc-text">Ready to process payment</div>
+            <div style="color: #666; font-size: 0.9rem;">Select a card above to simulate NFC tap</div>
         </div>
 
         <div class="nfc-section nfc-waiting hidden" id="nfcWaiting">
@@ -340,17 +435,153 @@
 </div>
 
 <script>
+    // Demo cards configuration
+    const DEMO_CARDS = [
+        {
+            id: 'DEMO_CARD_001',
+            name: 'Standard Card',
+            icon: '💳',
+            limits: {
+                maxTransaction: 50,
+                dailyLimit: 200,
+                transactionsPerDay: 10
+            },
+            balance: 0,
+            dailySpent: 0,
+            transactionCount: 0
+        },
+        {
+            id: 'DEMO_CARD_002',
+            name: 'Budget Card',
+            icon: '💰',
+            limits: {
+                maxTransaction: 25,
+                dailyLimit: 100,
+                transactionsPerDay: 5
+            },
+            balance: 0,
+            dailySpent: 0,
+            transactionCount: 0
+        },
+        {
+            id: 'DEMO_CARD_VIP',
+            name: 'VIP Card',
+            icon: '👑',
+            limits: {
+                maxTransaction: 200,
+                dailyLimit: 1000,
+                transactionsPerDay: 20
+            },
+            balance: 0,
+            dailySpent: 0,
+            transactionCount: 0,
+            isVIP: true
+        }
+    ];
+
     // POS System State
     let currentAmount = '0';
-    let isWaitingForNFC = false;
+    let selectedCard = null;
+    let isProcessing = false;
     let merchantId = 'vendor001';
 
     // Backend API base URL
     const API_BASE = 'http://localhost:3001/api';
 
+    // Initialize POS system
+    document.addEventListener('DOMContentLoaded', function() {
+        updateDisplay();
+        renderDemoCards();
+        checkBackendConnection();
+
+        // Load card statuses
+        loadCardStatuses();
+    });
+
+    // Render demo cards
+    function renderDemoCards() {
+        const grid = document.getElementById('demoCardsGrid');
+        grid.innerHTML = '';
+
+        DEMO_CARDS.forEach(card => {
+            const cardElement = document.createElement('div');
+            cardElement.className = 'demo-card';
+            cardElement.onclick = () => selectCard(card);
+
+            cardElement.innerHTML = `
+                    <div class="card-icon">${card.icon}</div>
+                    <div class="card-name">${card.name}</div>
+                    <div class="card-limits">
+                        Max: $${card.limits.maxTransaction}<br>
+                        Daily: $${card.limits.dailyLimit}<br>
+                        Txns: ${card.limits.transactionsPerDay}/day
+                    </div>
+                    <div class="card-balance">Balance: $${card.balance.toFixed(2)}</div>
+                `;
+
+            cardElement.id = `card-${card.id}`;
+            grid.appendChild(cardElement);
+        });
+    }
+
+    // Load card statuses from backend
+    async function loadCardStatuses() {
+        for (const card of DEMO_CARDS) {
+            try {
+                const response = await fetch(`${API_BASE}/wallet-status/${card.id}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    card.balance = parseFloat(data.balance) || 0;
+                    card.dailySpent = data.dailySpent || 0;
+                    card.transactionCount = data.transactionCount || 0;
+
+                    // Update card display
+                    updateCardDisplay(card);
+                }
+            } catch (error) {
+                console.log(`Could not load status for ${card.id}`);
+            }
+        }
+    }
+
+    // Update individual card display
+    function updateCardDisplay(card) {
+        const cardElement = document.getElementById(`card-${card.id}`);
+        if (cardElement) {
+            const balanceElement = cardElement.querySelector('.card-balance');
+            if (balanceElement) {
+                balanceElement.textContent = `Balance: $${card.balance.toFixed(2)}`;
+            }
+        }
+    }
+
+    // Select a card
+    function selectCard(card) {
+        // Remove previous selection
+        document.querySelectorAll('.demo-card').forEach(el => {
+            el.classList.remove('selected');
+        });
+
+        // Add selection to clicked card
+        document.getElementById(`card-${card.id}`).classList.add('selected');
+
+        selectedCard = card;
+
+        // Update UI
+        document.getElementById('selectedCardInfo').classList.remove('hidden');
+        document.getElementById('selectedCardName').textContent = `${card.name} (${card.id})`;
+
+        // Enable process button
+        const processBtn = document.getElementById('processBtn');
+        processBtn.disabled = false;
+        processBtn.textContent = 'Process Payment';
+
+        showStatus(`Selected: ${card.name} - Ready to process payment`, 'info');
+    }
+
     // Amount input functions
     function addDigit(digit) {
-        if (isWaitingForNFC) return;
+        if (isProcessing) return;
 
         if (digit === '.' && currentAmount.includes('.')) return;
         if (currentAmount === '0' && digit !== '.') {
@@ -362,7 +593,7 @@
     }
 
     function backspace() {
-        if (isWaitingForNFC) return;
+        if (isProcessing) return;
 
         if (currentAmount.length > 1) {
             currentAmount = currentAmount.slice(0, -1);
@@ -373,7 +604,7 @@
     }
 
     function clearAmount() {
-        if (isWaitingForNFC) return;
+        if (isProcessing) return;
 
         currentAmount = '0';
         updateDisplay();
@@ -382,7 +613,7 @@
     }
 
     function setQuickAmount(amount) {
-        if (isWaitingForNFC) return;
+        if (isProcessing) return;
 
         currentAmount = amount.toString();
         updateDisplay();
@@ -394,8 +625,13 @@
         display.textContent = `$${amount.toFixed(2)}`;
     }
 
-    // NFC Payment Processing
-    function waitForNFC() {
+    // Process payment with selected card
+    async function processPayment() {
+        if (!selectedCard) {
+            showStatus('Please select a card first', 'error');
+            return;
+        }
+
         const amount = parseFloat(currentAmount) || 0;
 
         if (amount <= 0) {
@@ -403,46 +639,43 @@
             return;
         }
 
-        if (amount > 200) {
-            showStatus('Amount exceeds maximum transaction limit of $200', 'error');
+        // Check card limits locally first
+        if (amount > selectedCard.limits.maxTransaction) {
+            showStatus(`❌ Transaction exceeds card limit of $${selectedCard.limits.maxTransaction}`, 'error');
             return;
         }
 
-        // Switch to waiting mode
-        isWaitingForNFC = true;
+        if (selectedCard.dailySpent + amount > selectedCard.limits.dailyLimit) {
+            const remaining = selectedCard.limits.dailyLimit - selectedCard.dailySpent;
+            showStatus(`❌ Would exceed daily limit. Remaining: $${remaining.toFixed(2)}`, 'error');
+            return;
+        }
+
+        if (selectedCard.transactionCount >= selectedCard.limits.transactionsPerDay) {
+            showStatus(`❌ Daily transaction limit reached (${selectedCard.limits.transactionsPerDay})`, 'error');
+            return;
+        }
+
+        // Check category restrictions
+        const category = document.getElementById('categorySelect').value;
+        if (category === 'alcohol' && !selectedCard.isVIP) {
+            showStatus('❌ Only VIP cards can purchase alcohol', 'error');
+            return;
+        }
+
+        // Process payment
+        isProcessing = true;
         document.getElementById('nfcSection').classList.add('hidden');
         document.getElementById('nfcWaiting').classList.remove('hidden');
-        document.getElementById('processBtn').textContent = 'Cancel';
-        document.getElementById('processBtn').onclick = cancelPayment;
+        document.getElementById('processBtn').disabled = true;
 
-        // Simulate NFC card detection
+        // Simulate NFC tap
+        showStatus(`📱 Simulating NFC tap with ${selectedCard.name}...`, 'info');
+
+        // Small delay to simulate NFC read
         setTimeout(() => {
-            simulateNFCTap();
-        }, 2000 + Math.random() * 3000); // Random delay 2-5 seconds
-    }
-
-    function cancelPayment() {
-        isWaitingForNFC = false;
-        document.getElementById('nfcSection').classList.remove('hidden');
-        document.getElementById('nfcWaiting').classList.add('hidden');
-        document.getElementById('processBtn').textContent = 'Ready for Payment';
-        document.getElementById('processBtn').onclick = waitForNFC;
-        showStatus('Payment cancelled', 'info');
-    }
-
-    // Simulate NFC tap - FIXED VERSION
-    function simulateNFCTap() {
-        // Use the EXACT demo cards that are registered in the backend
-        const testCards = [
-            'DEMO_CARD_001',
-        ];
-
-        const randomCard = testCards[Math.floor(Math.random() * testCards.length)];
-
-        console.log('🎯 Simulated NFC tap with card:', randomCard);
-        showStatus(`📱 Simulated NFC tap: ${randomCard}`, 'info');
-
-        processNFCPayment(randomCard);
+            processNFCPayment(selectedCard.id);
+        }, 1500);
     }
 
     // Process the actual payment
@@ -469,14 +702,13 @@
             const result = await response.json();
 
             // Reset UI
-            isWaitingForNFC = false;
+            isProcessing = false;
             document.getElementById('nfcSection').classList.remove('hidden');
             document.getElementById('nfcWaiting').classList.add('hidden');
-            document.getElementById('processBtn').textContent = 'Ready for Payment';
-            document.getElementById('processBtn').onclick = waitForNFC;
+            document.getElementById('processBtn').disabled = false;
 
             if (result.success) {
-                showStatus(`✅ Payment Successful! $${amount.toFixed(2)} charged to ${nfcUID}`, 'success');
+                showStatus(`✅ Payment Successful! $${amount.toFixed(2)} charged to ${selectedCard.name}`, 'success');
                 showTransactionDetails({
                     id: result.transactionId,
                     amount: amount,
@@ -484,6 +716,12 @@
                     remainingLimit: result.remainingDailyLimit,
                     status: 'Completed'
                 });
+
+                // Update card state
+                selectedCard.dailySpent += amount;
+                selectedCard.transactionCount++;
+                selectedCard.balance = parseFloat(result.newBalance || selectedCard.balance - amount);
+                updateCardDisplay(selectedCard);
 
                 // Auto-clear for next transaction
                 setTimeout(() => {
@@ -498,11 +736,10 @@
             showStatus('❌ Payment failed: Connection error', 'error');
 
             // Reset UI on error
-            isWaitingForNFC = false;
+            isProcessing = false;
             document.getElementById('nfcSection').classList.remove('hidden');
             document.getElementById('nfcWaiting').classList.add('hidden');
-            document.getElementById('processBtn').textContent = 'Ready for Payment';
-            document.getElementById('processBtn').onclick = waitForNFC;
+            document.getElementById('processBtn').disabled = false;
         }
     }
 
@@ -532,28 +769,132 @@
         document.getElementById('transactionDetails').classList.add('hidden');
     }
 
-    // Initialize POS system
-    document.addEventListener('DOMContentLoaded', function() {
-        updateDisplay();
+    // Check backend connection
+    async function checkBackendConnection() {
+        try {
+            const response = await fetch(`${API_BASE}/system-status`);
+            const data = await response.json();
 
-        // Check backend connection
-        fetch(`${API_BASE}/system-status`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'running') {
-                    showStatus('✅ Connected to payment system', 'success');
-                    console.log('System status:', data);
-                    setTimeout(hideStatus, 3000);
-                }
-            })
-            .catch(error => {
-                showStatus('⚠️ Cannot connect to payment system', 'error');
+            if (data.status === 'running') {
+                showStatus('✅ Connected to payment system', 'success');
+                console.log('System status:', data);
+                setTimeout(hideStatus, 3000);
+            }
+        } catch (error) {
+            showStatus('⚠️ Cannot connect to payment system', 'error');
+        }
+    }
+
+    // Pre-flight checks function
+    function performPreFlightChecks(card, amount) {
+        const category = document.getElementById('categorySelect').value;
+        const checks = {
+            passed: true,
+            message: '',
+            details: []
+        };
+
+        // Check 1: Transaction limit
+        if (amount > card.limits.maxTransaction) {
+            checks.passed = false;
+            checks.message = `❌ Transaction exceeds card limit of ${card.limits.maxTransaction}`;
+            checks.details.push({
+                check: 'Transaction Limit',
+                status: 'FAILED',
+                limit: card.limits.maxTransaction,
+                requested: amount
             });
-    });
+        } else {
+            checks.details.push({
+                check: 'Transaction Limit',
+                status: 'PASSED',
+                limit: card.limits.maxTransaction,
+                requested: amount
+            });
+        }
+
+        // Check 2: Daily spending limit
+        const wouldSpend = card.dailySpent + amount;
+        if (wouldSpend > card.limits.dailyLimit) {
+            const remaining = card.limits.dailyLimit - card.dailySpent;
+            checks.passed = false;
+            checks.message = `❌ Would exceed daily limit. Remaining: ${remaining.toFixed(2)}`;
+            checks.details.push({
+                check: 'Daily Limit',
+                status: 'FAILED',
+                limit: card.limits.dailyLimit,
+                current: card.dailySpent,
+                wouldBe: wouldSpend
+            });
+        } else {
+            checks.details.push({
+                check: 'Daily Limit',
+                status: 'PASSED',
+                limit: card.limits.dailyLimit,
+                current: card.dailySpent,
+                wouldBe: wouldSpend
+            });
+        }
+
+        // Check 3: Transaction count
+        if (card.transactionCount >= card.limits.transactionsPerDay) {
+            checks.passed = false;
+            checks.message = `❌ Daily transaction limit reached (${card.limits.transactionsPerDay})`;
+            checks.details.push({
+                check: 'Transaction Count',
+                status: 'FAILED',
+                limit: card.limits.transactionsPerDay,
+                current: card.transactionCount
+            });
+        } else {
+            checks.details.push({
+                check: 'Transaction Count',
+                status: 'PASSED',
+                limit: card.limits.transactionsPerDay,
+                current: card.transactionCount
+            });
+        }
+
+        // Check 4: Category restrictions
+        if (category === 'alcohol' && !card.isVIP) {
+            checks.passed = false;
+            checks.message = '❌ Only VIP cards can purchase alcohol';
+            checks.details.push({
+                check: 'Age/Category Restriction',
+                status: 'FAILED',
+                category: category,
+                cardType: card.name
+            });
+        } else if (category === 'alcohol') {
+            checks.details.push({
+                check: 'Age/Category Restriction',
+                status: 'PASSED',
+                category: category,
+                cardType: card.name
+            });
+        }
+
+        // If all passed, set success message
+        if (checks.passed) {
+            checks.message = '✅ All checks passed - ready to process';
+        }
+
+        return checks;
+    }
+
+    // Show pre-flight check details
+    function showPreFlightDetails(checks) {
+        console.log('Pre-flight checks:', checks.details);
+
+        // You could expand this to show a modal with detailed check results
+        checks.details.forEach(detail => {
+            console.log(`${detail.status === 'PASSED' ? '✅' : '❌'} ${detail.check}:`, detail);
+        });
+    }
 
     // Keyboard support
     document.addEventListener('keydown', function(event) {
-        if (isWaitingForNFC) return;
+        if (isProcessing) return;
 
         const key = event.key;
         if (key >= '0' && key <= '9') {
@@ -562,12 +903,15 @@
             addDigit('.');
         } else if (key === 'Backspace') {
             backspace();
-        } else if (key === 'Enter') {
-            waitForNFC();
+        } else if (key === 'Enter' && selectedCard) {
+            processPayment();
         } else if (key === 'Escape') {
             clearAmount();
         }
     });
+
+    // Refresh card statuses periodically
+    setInterval(loadCardStatuses, 10000); // Every 10 seconds
 </script>
 </body>
 </html>
