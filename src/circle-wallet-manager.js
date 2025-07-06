@@ -13,6 +13,10 @@ class CircleWalletManager {
     this.usdcTokenId = 'bdf128b4-827b-5267-8f9e-243694989b5f';
   }
 
+  _getTxId = (res) => res?.data?.id            // new shape
+      ?? res?.data?.transaction?.id // old shape
+      ?? null;
+
   // Initialize Circle client and main wallet
   async initializeMainWallet() {
     try {
@@ -282,14 +286,12 @@ class CircleWalletManager {
 
       console.log('📤 Creating funding transaction...');
       const transferResponse = await this.client.createTransaction(transferRequest);
-      console.log('✅ Funding transaction created:', transferResponse.data.transaction.id);
+      console.log('✅ Funding transaction created:', transferResponse.data.id);
 
-      // Wait for confirmation
-      const confirmedTx = await this.waitForTransactionConfirmation(
-          transferResponse.data.transaction.id
+      // Wait for confirmatio
+      return await this.waitForTransactionConfirmation(
+          transferResponse.data.id
       );
-
-      return confirmedTx;
 
     } catch (error) {
       console.error('❌ Error funding wallet:', error.message);
@@ -397,12 +399,13 @@ class CircleWalletManager {
         };
 
         console.log('📤 Creating emergency withdrawal...');
-        const withdrawalResponse = await this.client.createTransaction(withdrawalRequest);
-        const transaction = withdrawalResponse.data.transaction;
+        const withdrawalResponse = await walletManager.client.createTransaction(withdrawalRequest);
+        const txId = withdrawalResponse?.data?.id                      // new SDK shape
+            ?? withdrawalResponse?.data?.transaction?.id;       // fallback
+        if (!txId) throw new Error('Withdrawal: no transaction id returned');
 
         // Wait for confirmation
-        const confirmedTx = await this.waitForTransactionConfirmation(transaction.id);
-
+        const confirmedTx = await walletManager.waitForTransactionConfirmation(txId);
         console.log('🚨 Kill switch executed - funds withdrawn:', balanceAmount, 'USDC');
 
         return {
